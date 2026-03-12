@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+<title>Cantieri · Salvataggio automatico</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  body {
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 1.5rem;
+  }
+  .dashboard {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 1.5rem;
+  }
+
+  /* HEADER CON SOLO INDICATORE */
+  .app-header {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    border-radius: 24px;
+    padding: 1rem 1.5rem;
+    box-shadow: 0 4px 6px -2px rgba(0,0,0,0.05);
+    margin-bottom: 0.5rem;
+  }
+  .app-title {
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: #0f172a;
+  }
+  .save-status {
+    font-size: 0.7rem;
+    color: #059669;
+    background: #e0f2fe;
+    padding: 0.3rem 1rem;
+    border-radius: 30px;
+  }
+
+  /* CANTIERI SECTION */
+  .cantieri-section {
+    background: white;
+    border-radius: 24px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -2px rgba(0,0,0,0.05);
+  }
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .section-title {
+    font-weight: 700;
+    font-size: 1.2rem;
+  }
+
+  .cantiere-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 1.2rem;
+    margin-bottom: 1.2rem;
+    background: #f8fafc;
+    transition: background-color 0.1s;
+  }
+  .cantiere-card.drag-over {
+    background: #e0f2fe;
+    border: 2px dashed #2563eb;
+  }
+
+  .cantiere-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .cantiere-nome-input {
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.3rem 0.8rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 30px;
+    background: white;
+    min-width: 140px;
+  }
+  .cantiere-localita-input {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.8rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 30px;
+    background: white;
+    min-width: 120px;
+  }
+
+  .date-container {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0.5rem 0 1rem 0;
+    flex-wrap: wrap;
+  }
+  .date-input {
+    padding: 0.3rem 0.8rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 30px;
+    font-size: 0.8rem;
+    background: white;
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .btn-icon {
+    background: #e2e8f0;
+    border: none;
+    border-radius: 30px;
+    padding: 0.3rem 1rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-icon:hover {
+    background: #cbd5e1;
+  }
+
+  /* Operai nei cantieri - UNA ICONA PER TIPO CON NUMERO */
+  .cantieri-operai {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-top: 0.8rem;
+    padding: 0.5rem 0;
+    min-height: 50px;
+  }
+  
+  .tipo-icona {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem 0.5rem 0.8rem;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 40px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    cursor: grab;
+    user-select: none;
+    transition: all 0.1s;
+  }
+  .tipo-icona:active {
+    cursor: grabbing;
+    opacity: 0.8;
+  }
+  .tipo-icona.dragging {
+    opacity: 0.3;
+  }
+  .tipo-colore {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+  }
+  .tipo-nome {
+    font-weight: 500;
+    font-size: 0.8rem;
+  }
+  .tipo-numero {
+    font-weight: 700;
+    font-size: 1rem;
+    min-width: 24px;
+    text-align: center;
+    background: #f1f5f9;
+    padding: 0.2rem 0.4rem;
+    border-radius: 20px;
+  }
+
+  /* POOL OPERAI */
+  .personale-section {
+    background: white;
+    border-radius: 24px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -2px rgba(0,0,0,0.05);
+    align-self: start;
+    position: sticky;
+    top: 1rem;
+  }
+
+  .stats-totali {
+    background: #f1f5f9;
+    border-radius: 18px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+  }
+
+  .pool-container {
+    background: #f8fafc;
+    border-radius: 20px;
+    padding: 1rem;
+    min-height: 300px;
+    border: 2px dashed #2563eb;
+    margin-bottom: 1rem;
+  }
+  .pool-container.drag-over {
+    background: #e0f2fe;
+    border-color: #059669;
+  }
+
+  .pool-title {
+    font-weight: 600;
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+    color: #475569;
+  }
+
+  /* Tipi draggabili con + e - */
+  .pool-types {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  
+  .pool-type {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 50px;
+    cursor: grab;
+    user-select: none;
+    transition: all 0.1s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  .pool-type:active {
+    cursor: grabbing;
+    opacity: 0.8;
+  }
+  .pool-type.dragging {
+    opacity: 0.3;
+  }
+  .pool-type-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+  }
+  .pool-type-name {
+    font-weight: 600;
+    font-size: 1rem;
+    min-width: 100px;
+  }
+  .pool-type-count {
+    font-weight: 700;
+    font-size: 1.2rem;
+    min-width: 40px;
+    text-align: center;
+    color: #0f172a;
+  }
+  .pool-type-controls {
+    display: flex;
+    gap: 0.3rem;
+    margin-left: auto;
+  }
+  .pool-type-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 30px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pool-type-btn:hover {
+    background: #e0f2fe;
+    border-color: #2563eb;
+  }
+  .pool-type-btn.minus {
+    color: #dc2626;
+  }
+  .pool-type-btn.plus {
+    color: #059669;
+  }
+  .pool-type-drag {
+    font-size: 0.65rem;
+    color: #2563eb;
+    background: #e0f2fe;
+    padding: 0.2rem 0.8rem;
+    border-radius: 30px;
+  }
+
+  /* Aggiunta nuovi tipi */
+  .add-tipo {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f1f5f9;
+    border-radius: 20px;
+  }
+  .add-tipo-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  .add-tipo-inputs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .add-tipo-input {
+    flex: 1;
+    padding: 0.5rem 0.8rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 30px;
+    font-size: 0.8rem;
+  }
+  .add-tipo-color {
+    width: 40px;
+    height: 40px;
+    border-radius: 30px;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+  }
+  .add-tipo-btn {
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 30px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .add-tipo-btn:hover {
+    background: #1d4ed8;
+  }
+
+  .libertotale {
+    margin-top: 1rem;
+    background: #e0f2fe;
+    padding: 0.8rem 1rem;
+    border-radius: 30px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  .drag-note {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin-bottom: 0.8rem;
+    background: #f1f5f9;
+    padding: 0.5rem 1rem;
+    border-radius: 30px;
+  }
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+
+  <!-- HEADER CON SOLO INDICATORE SALVATAGGIO -->
+  <div class="app-header">
+    <div class="app-title">🏗️ CANTIERI · GESTIONE OPERAI</div>
+    <span class="save-status" id="saveStatus">💾 Salvato automaticamente</span>
+  </div>
+
+  <!-- COLONNA SINISTRA: CANTIERI -->
+  <div class="cantieri-section">
+    <div class="section-header">
+      <span class="section-title">🏗️ CANTIERI</span>
+      <button class="btn-icon" onclick="aggiungiCantiere()">+ NUOVO CANTIERE</button>
+    </div>
+    <div id="cantieriContainer"></div>
+  </div>
+
+  <!-- COLONNA DESTRA: POOL OPERAI -->
+  <div class="personale-section">
+    <div class="section-title">👥 POOL OPERAI</div>
+    
+    <div class="stats-totali">
+      <span>Organico: <span id="totale-organico">110</span></span>
+      <span>Assegnati: <span id="totale-assegnati">0</span></span>
+    </div>
+
+    <div class="drag-note">
+      🖱️ Trascina le icone numerate per spostare UN operaio alla volta
+    </div>
+
+    <div class="pool-container" id="poolContainer" ondragover="handleDragOver(event)" ondrop="dropOnPool(event)">
+      <div class="pool-title">📊 TIPI OPERAI (DRAGGABILI)</div>
+      
+      <!-- Tipi draggabili con conteggio e pulsanti + - -->
+      <div class="pool-types" id="poolTypes"></div>
+
+      <!-- Sezione aggiungi nuovo tipo -->
+      <div class="add-tipo">
+        <div class="add-title">➕ AGGIUNGI NUOVO TIPO OPERAIO</div>
+        <div class="add-tipo-form">
+          <div class="add-tipo-inputs">
+            <input type="text" class="add-tipo-input" id="nuovoTipoNome" placeholder="es. Carpentieri" value="Carpentieri">
+            <input type="color" class="add-tipo-color" id="nuovoTipoColore" value="#8b5cf6">
+          </div>
+          <button class="add-tipo-btn" onclick="aggiungiNuovoTipo()">CREA NUOVO TIPO</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="libertotale" id="libertotale">
+      👥 Calcolo...
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    // SKILL DISPONIBILI (iniziali)
+    let SKILLS = [
+      { key: 'mont', nome: 'Montatori', colore: '#2563eb', totale: 8 },
+      { key: 'sald', nome: 'Saldatori', colore: '#6b21a8', totale: 5 },
+      { key: 'elett', nome: 'Elettricisti', colore: '#b45309', totale: 6 },
+      { key: 'posa', nome: 'Posatori', colore: '#059669', totale: 7 },
+      { key: 'man', nome: 'Manovali', colore: '#4b5563', totale: 8 }
+    ];
+
+    // Pool operai
+    let pool = [];
+    function rigeneraPoolDaSkill() {
+      pool = [];
+      SKILLS.forEach(skill => {
+        for (let i = 0; i < skill.totale; i++) {
+          pool.push({
+            id: `pool-${skill.key}-${i}`,
+            skillKey: skill.key,
+            skillNome: skill.nome,
+            colore: skill.colore
+          });
+        }
+      });
+    }
+    rigeneraPoolDaSkill();
+
+    // CANTIERI INIZIALI
+    let cantieri = [
+      { 
+        id: 0, 
+        nome: 'Stazione MM', 
+        localita: 'Milano',
+        dataInizio: '2025-06-01',
+        dataFine: '2025-09-30',
+        operai: []
+      },
+      { 
+        id: 1, 
+        nome: 'Deposito AT', 
+        localita: 'Torino',
+        dataInizio: '2025-05-15',
+        dataFine: '2025-08-20',
+        operai: []
+      },
+      { 
+        id: 2, 
+        nome: 'Linea Alta Tensione', 
+        localita: 'Genova',
+        dataInizio: '2025-04-01',
+        dataFine: '2025-07-31',
+        operai: []
+      }
+    ];
+
+    // Aggiungo alcuni operai di test
+    for (let i = 0; i < 3; i++) {
+      cantieri[0].operai.push({ id: `pool-mont-${i}`, skillKey: 'mont', skillNome: 'Montatori', colore: '#2563eb' });
+    }
+    for (let i = 3; i < 5; i++) {
+      cantieri[0].operai.push({ id: `pool-sald-${i}`, skillKey: 'sald', skillNome: 'Saldatori', colore: '#6b21a8' });
+    }
+    for (let i = 0; i < 2; i++) {
+      cantieri[1].operai.push({ id: `pool-elett-${i}`, skillKey: 'elett', skillNome: 'Elettricisti', colore: '#b45309' });
+    }
+    // Aggiorno il pool
+    pool = pool.filter(op => 
+      !cantieri[0].operai.some(o => o.id === op.id) && 
+      !cantieri[1].operai.some(o => o.id === op.id)
+    );
+
+    let nextId = 3;
+
+    // Variabili drag
+    let draggedElement = null;
+    let draggedData = null;
+
+    // -------------------- FUNZIONI CALCOLO --------------------
+    function totaleAssegnati() {
+      return cantieri.reduce((acc, c) => acc + c.operai.length, 0);
+    }
+
+    function getPoolCounts() {
+      const counts = {};
+      SKILLS.forEach(s => counts[s.key] = 0);
+      pool.forEach(op => counts[op.skillKey]++);
+      return counts;
+    }
+
+    function getCantiereCounts(cantiere) {
+      const counts = {};
+      cantiere.operai.forEach(op => {
+        if (!counts[op.skillKey]) counts[op.skillKey] = 0;
+        counts[op.skillKey]++;
+      });
+      return counts;
+    }
+
+    // -------------------- SALVATAGGIO AUTOMATICO --------------------
+    function salvaSuStorage() {
+      const dati = {
+        SKILLS: SKILLS,
+        pool: pool,
+        cantieri: cantieri,
+        nextId: nextId
+      };
+      localStorage.setItem('cantieriData', JSON.stringify(dati));
+      
+      // Aggiorna indicatore
+      const statusEl = document.getElementById('saveStatus');
+      statusEl.innerHTML = '💾 Salvato ' + new Date().toLocaleTimeString();
+      statusEl.style.color = '#059669';
+      
+      // Reset colore dopo 2 secondi
+      setTimeout(() => {
+        statusEl.style.color = '#059669';
+      }, 2000);
+    }
+
+    function caricaDaStorage() {
+      const saved = localStorage.getItem('cantieriData');
+      if (saved) {
+        try {
+          const dati = JSON.parse(saved);
+          SKILLS = dati.SKILLS;
+          pool = dati.pool;
+          cantieri = dati.cantieri;
+          nextId = dati.nextId || 3;
+          
+          document.getElementById('saveStatus').innerHTML = '✅ Caricato ' + new Date().toLocaleTimeString();
+        } catch (e) {
+          console.error('Errore caricamento', e);
+        }
+      }
+    }
+
+    // -------------------- AGGIUNTA NUOVO TIPO --------------------
+    window.aggiungiNuovoTipo = function() {
+      const nomeInput = document.getElementById('nuovoTipoNome');
+      const coloreInput = document.getElementById('nuovoTipoColore');
+      
+      const nome = nomeInput.value.trim();
+      const colore = coloreInput.value;
+      
+      if (!nome) {
+        alert('Inserisci un nome per il tipo');
+        return;
+      }
+      
+      const key = nome.toLowerCase().replace(/[^a-z]/g, '');
+      
+      if (SKILLS.some(s => s.key === key)) {
+        alert('Esiste già un tipo con questo nome');
+        return;
+      }
+      
+      SKILLS.push({
+        key: key,
+        nome: nome,
+        colore: colore,
+        totale: 5
+      });
+      
+      for (let i = 0; i < 5; i++) {
+        pool.push({
+          id: `pool-${key}-${i}`,
+          skillKey: key,
+          skillNome: nome,
+          colore: colore
+        });
+      }
+      
+      nomeInput.value = '';
+      renderCantieri();
+      salvaSuStorage();
+    };
+
+    // -------------------- CONTROLLI + E - NEL POOL --------------------
+    window.aumentaOperai = function(skillKey) {
+      const skill = SKILLS.find(s => s.key === skillKey);
+      if (!skill) return;
+      
+      skill.totale++;
+      
+      const existingIds = pool.map(op => op.id);
+      let newIndex = 0;
+      while (existingIds.includes(`pool-${skillKey}-${newIndex}`)) {
+        newIndex++;
+      }
+      
+      pool.push({
+        id: `pool-${skillKey}-${newIndex}`,
+        skillKey: skill.key,
+        skillNome: skill.nome,
+        colore: skill.colore
+      });
+      
+      renderCantieri();
+      salvaSuStorage();
+    };
+
+    window.diminuisciOperai = function(skillKey) {
+      const skill = SKILLS.find(s => s.key === skillKey);
+      if (!skill) return;
+      
+      const index = pool.findIndex(op => op.skillKey === skillKey);
+      if (index === -1) return;
+      
+      pool.splice(index, 1);
+      skill.totale--;
+      
+      renderCantieri();
+      salvaSuStorage();
+    };
+
+    // -------------------- RENDER TIPI POOL --------------------
+    function renderPoolTypes() {
+      const container = document.getElementById('poolTypes');
+      const counts = getPoolCounts();
+      
+      let html = '';
+      SKILLS.forEach(skill => {
+        const count = counts[skill.key] || 0;
+        
+        html += `
+          <div class="pool-type" 
+               draggable="${count > 0}" 
+               data-skill="${skill.key}" 
+               data-count="${count}"
+               ondragstart="handlePoolTypeDragStart(event)"
+               ondragend="handleDragEnd(event)"
+               style="${count === 0 ? 'opacity: 0.5;' : ''}">
+            <span class="pool-type-color" style="background: ${skill.colore};"></span>
+            <span class="pool-type-name">${skill.nome}</span>
+            <span class="pool-type-count">${count}</span>
+            <div class="pool-type-controls">
+              <button class="pool-type-btn minus" onclick="event.stopPropagation(); diminuisciOperai('${skill.key}')">−</button>
+              <button class="pool-type-btn plus" onclick="event.stopPropagation(); aumentaOperai('${skill.key}')">+</button>
+            </div>
+            <span class="pool-type-drag">trascina</span>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
+
+    // -------------------- RENDER CANTIERI --------------------
+    function renderCantieri() {
+      const container = document.getElementById('cantieriContainer');
+      container.innerHTML = '';
+
+      cantieri.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'cantiere-card';
+        card.dataset.id = c.id;
+        card.setAttribute('ondragover', 'handleDragOver(event)');
+        card.setAttribute('ondrop', 'dropOnCantiere(event, ' + c.id + ')');
+
+        // Header modificabile
+        const header = document.createElement('div');
+        header.className = 'cantiere-header';
+        header.innerHTML = `
+          <input type="text" class="cantiere-nome-input" value="${c.nome}" data-id="${c.id}" data-field="nome" onchange="salvaModifiche(${c.id})">
+          <input type="text" class="cantiere-localita-input" value="${c.localita}" data-id="${c.id}" data-field="localita" onchange="salvaModifiche(${c.id})">
+        `;
+
+        // Date inputs
+        const dateContainer = document.createElement('div');
+        dateContainer.className = 'date-container';
+        dateContainer.innerHTML = `
+          <input type="date" class="date-input" value="${c.dataInizio || ''}" data-id="${c.id}" data-field="dataInizio" onchange="aggiornaData(${c.id}, 'dataInizio', this.value)">
+          <input type="date" class="date-input" value="${c.dataFine || ''}" data-id="${c.id}" data-field="dataFine" onchange="aggiornaData(${c.id}, 'dataFine', this.value)">
+        `;
+
+        // Raggruppa operai per tipo
+        const counts = getCantiereCounts(c);
+
+        // Icone per tipo (UNA per tipo con numero totale)
+        const iconeContainer = document.createElement('div');
+        iconeContainer.className = 'cantieri-operai';
+
+        if (c.operai.length === 0) {
+          iconeContainer.innerHTML = '<div style="color:#94a3b8; text-align:center; padding:0.5rem;">Nessun operaio</div>';
+        } else {
+          Object.keys(counts).forEach(skillKey => {
+            const skill = SKILLS.find(s => s.key === skillKey);
+            if (!skill) return;
+            
+            const count = counts[skillKey];
+            
+            const icona = document.createElement('div');
+            icona.className = 'tipo-icona';
+            icona.setAttribute('draggable', count > 0 ? 'true' : 'false');
+            icona.setAttribute('data-skill', skillKey);
+            icona.setAttribute('data-cantiere', c.id);
+            icona.setAttribute('data-count', count);
+            icona.setAttribute('data-provenienza', 'cantiere-tipo');
+            
+            icona.addEventListener('dragstart', handleCantiereTipoDragStart);
+            icona.addEventListener('dragend', handleDragEnd);
+            
+            icona.innerHTML = `
+              <span class="tipo-colore" style="background: ${skill.colore};"></span>
+              <span class="tipo-nome">${skill.nome}</span>
+              <span class="tipo-numero">${count}</span>
+            `;
+            iconeContainer.appendChild(icona);
+          });
+        }
+
+        card.appendChild(header);
+        card.appendChild(dateContainer);
+        card.appendChild(iconeContainer);
+        container.appendChild(card);
+      });
+
+      renderPoolTypes();
+      aggiornaStats();
+    }
+
+    // -------------------- HANDLER DRAG --------------------
+    window.handlePoolTypeDragStart = function(e) {
+      const typeElement = e.currentTarget;
+      const skill = typeElement.dataset.skill;
+      const count = parseInt(typeElement.dataset.count);
+      
+      if (count === 0) {
+        e.preventDefault();
+        return;
+      }
+      
+      typeElement.classList.add('dragging');
+      
+      draggedData = {
+        skill: skill,
+        provenienza: 'pool-type'
+      };
+      
+      e.dataTransfer.setData('text/plain', JSON.stringify(draggedData));
+      e.dataTransfer.effectAllowed = 'move';
+    };
+
+    function handleCantiereTipoDragStart(e) {
+      const icona = e.currentTarget;
+      const skill = icona.dataset.skill;
+      const cantiereId = parseInt(icona.dataset.cantiere);
+      const count = parseInt(icona.dataset.count);
+      
+      if (count === 0) {
+        e.preventDefault();
+        return;
+      }
+      
+      icona.classList.add('dragging');
+      
+      draggedData = {
+        skill: skill,
+        cantiereId: cantiereId,
+        provenienza: 'cantiere-tipo'
+      };
+      
+      e.dataTransfer.setData('text/plain', JSON.stringify(draggedData));
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    window.handleDragEnd = function(e) {
+      e.currentTarget.classList.remove('dragging');
+      document.querySelectorAll('.cantiere-card, .pool-container').forEach(el => {
+        el.classList.remove('drag-over');
+      });
+      draggedData = null;
+    };
+
+    window.handleDragOver = function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      e.currentTarget.classList.add('drag-over');
+    };
+
+    // -------------------- DROP HANDLERS --------------------
+    window.dropOnCantiere = function(e, cantiereId) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      
+      const rawData = e.dataTransfer.getData('text/plain');
+      if (!rawData) return;
+      
+      const data = JSON.parse(rawData);
+      if (!data) return;
+
+      const destinazione = cantieri.find(c => c.id === cantiereId);
+      if (!destinazione) return;
+
+      // Caso 1: Dal pool a cantiere
+      if (data.provenienza === 'pool-type') {
+        const skill = data.skill;
+        const index = pool.findIndex(op => op.skillKey === skill);
+        if (index !== -1) {
+          const operaio = pool[index];
+          pool.splice(index, 1);
+          destinazione.operai.push(operaio);
+        }
+      }
+      
+      // Caso 2: Da altro cantiere (icona tipo)
+      else if (data.provenienza === 'cantiere-tipo') {
+        const origineId = data.cantiereId;
+        if (origineId === cantiereId) return;
+        
+        const origine = cantieri.find(c => c.id === origineId);
+        if (!origine) return;
+        
+        const skill = data.skill;
+        // Trova un operaio di quel tipo nel cantiere origine
+        const index = origine.operai.findIndex(op => op.skillKey === skill);
+        if (index !== -1) {
+          const operaio = origine.operai[index];
+          origine.operai.splice(index, 1);
+          destinazione.operai.push(operaio);
+        }
+      }
+
+      renderCantieri();
+      salvaSuStorage();
+    };
+
+    window.dropOnPool = function(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      
+      const rawData = e.dataTransfer.getData('text/plain');
+      if (!rawData) return;
+      
+      const data = JSON.parse(rawData);
+      if (!data) return;
+
+      // Solo da cantiere a pool
+      if (data.provenienza === 'cantiere-tipo') {
+        const origineId = data.cantiereId;
+        const origine = cantieri.find(c => c.id === origineId);
+        if (!origine) return;
+        
+        const skill = data.skill;
+        const index = origine.operai.findIndex(op => op.skillKey === skill);
+        if (index !== -1) {
+          const operaio = origine.operai[index];
+          origine.operai.splice(index, 1);
+          pool.push(operaio);
+        }
+      }
+
+      renderCantieri();
+      salvaSuStorage();
+    };
+
+    // -------------------- MODIFICHE CANTIERE --------------------
+    window.salvaModifiche = function(id) {
+      const nomeInput = document.querySelector(`.cantiere-nome-input[data-id="${id}"]`);
+      const locInput = document.querySelector(`.cantiere-localita-input[data-id="${id}"]`);
+      const cantiere = cantieri.find(c => c.id === id);
+      if (cantiere) {
+        cantiere.nome = nomeInput.value;
+        cantiere.localita = locInput.value;
+      }
+      renderCantieri();
+      salvaSuStorage();
+    };
+
+    window.aggiornaData = function(cantiereId, campo, valore) {
+      const cantiere = cantieri.find(c => c.id === cantiereId);
+      if (cantiere) {
+        cantiere[campo] = valore;
+      }
+      salvaSuStorage();
+    };
+
+    window.aggiungiCantiere = function() {
+      const oggi = new Date().toISOString().split('T')[0];
+      const futuro = new Date();
+      futuro.setMonth(futuro.getMonth() + 3);
+      const dataFine = futuro.toISOString().split('T')[0];
+
+      const nuovo = {
+        id: nextId++,
+        nome: 'Nuovo cantiere',
+        localita: 'Località',
+        dataInizio: oggi,
+        dataFine: dataFine,
+        operai: []
+      };
+      cantieri.push(nuovo);
+      renderCantieri();
+      salvaSuStorage();
+    };
+
+    // -------------------- STATS --------------------
+    function aggiornaStats() {
+      const totAss = totaleAssegnati();
+      const totSkill = SKILLS.reduce((acc, s) => acc + s.totale, 0);
+      document.getElementById('totale-organico').innerText = totSkill;
+      document.getElementById('totale-assegnati').innerText = totAss;
+      
+      const counts = getPoolCounts();
+      const totLiberi = Object.values(counts).reduce((a,b) => a + b, 0);
+      document.getElementById('libertotale').innerHTML = `👥 ${totLiberi} operai disponibili nel pool`;
+    }
+
+    // -------------------- AUTO-SAVE --------------------
+    // Salva automaticamente dopo ogni modifica (già incluso in tutte le funzioni)
+    // In più, salva ogni 30 secondi come backup
+    setInterval(() => {
+      salvaSuStorage();
+    }, 30000);
+
+    // Carica all'avvio
+    window.addEventListener('load', () => {
+      caricaDaStorage();
+      renderCantieri();
+    });
+
+    // -------------------- INIT --------------------
+    function init() {
+      renderCantieri();
+    }
+    init();
+
+  })();
+</script>
+</body>
+</html>
