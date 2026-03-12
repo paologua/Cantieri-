@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-<title>Cantieri · Salvataggio automatico</title>
+<title>Cantieri · Elimina categorie</title>
 <style>
   * {
     margin: 0;
@@ -24,7 +24,7 @@
     gap: 1.5rem;
   }
 
-  /* HEADER CON SOLO INDICATORE */
+  /* HEADER */
   .app-header {
     grid-column: 1 / -1;
     display: flex;
@@ -136,7 +136,7 @@
     background: #cbd5e1;
   }
 
-  /* Operai nei cantieri - UNA ICONA PER TIPO CON NUMERO */
+  /* Operai nei cantieri */
   .cantieri-operai {
     display: flex;
     flex-wrap: wrap;
@@ -226,7 +226,7 @@
     color: #475569;
   }
 
-  /* Tipi draggabili con + e - */
+  /* Tipi draggabili con + - e elimina */
   .pool-types {
     display: flex;
     flex-direction: column;
@@ -297,6 +297,17 @@
   }
   .pool-type-btn.plus {
     color: #059669;
+  }
+  .pool-type-btn.delete {
+    color: #dc2626;
+    background: #fee2e2;
+    border-color: #dc2626;
+    width: auto;
+    padding: 0 0.8rem;
+    font-size: 0.7rem;
+  }
+  .pool-type-btn.delete:hover {
+    background: #fecaca;
   }
   .pool-type-drag {
     font-size: 0.65rem;
@@ -373,7 +384,7 @@
 
 <div class="dashboard">
 
-  <!-- HEADER CON SOLO INDICATORE SALVATAGGIO -->
+  <!-- HEADER -->
   <div class="app-header">
     <div class="app-title">🏗️ CANTIERI · GESTIONE OPERAI</div>
     <span class="save-status" id="saveStatus">💾 Salvato automaticamente</span>
@@ -398,13 +409,13 @@
     </div>
 
     <div class="drag-note">
-      🖱️ Trascina le icone numerate per spostare UN operaio alla volta
+      🖱️ Trascina le icone · +/- per quantità · 🗑️ elimina categoria
     </div>
 
     <div class="pool-container" id="poolContainer" ondragover="handleDragOver(event)" ondrop="dropOnPool(event)">
       <div class="pool-title">📊 TIPI OPERAI (DRAGGABILI)</div>
       
-      <!-- Tipi draggabili con conteggio e pulsanti + - -->
+      <!-- Tipi draggabili con conteggio, pulsanti + - e elimina -->
       <div class="pool-types" id="poolTypes"></div>
 
       <!-- Sezione aggiungi nuovo tipo -->
@@ -535,15 +546,8 @@
       };
       localStorage.setItem('cantieriData', JSON.stringify(dati));
       
-      // Aggiorna indicatore
       const statusEl = document.getElementById('saveStatus');
       statusEl.innerHTML = '💾 Salvato ' + new Date().toLocaleTimeString();
-      statusEl.style.color = '#059669';
-      
-      // Reset colore dopo 2 secondi
-      setTimeout(() => {
-        statusEl.style.color = '#059669';
-      }, 2000);
     }
 
     function caricaDaStorage() {
@@ -562,6 +566,36 @@
         }
       }
     }
+
+    // -------------------- ELIMINA CATEGORIA --------------------
+    window.eliminaCategoria = function(skillKey) {
+      const skill = SKILLS.find(s => s.key === skillKey);
+      if (!skill) return;
+      
+      // Controlla se ci sono operai di questo tipo nei cantieri
+      const operaiNeiCantieri = cantieri.reduce((acc, c) => 
+        acc + c.operai.filter(op => op.skillKey === skillKey).length, 0);
+      
+      if (operaiNeiCantieri > 0) {
+        if (!confirm(`Ci sono ${operaiNeiCantieri} ${skill.nome} nei cantieri. Eliminando la categoria verranno rimossi anche loro. Continuare?`)) {
+          return;
+        }
+      }
+      
+      // Rimuovi tutti gli operai di questo tipo dal pool
+      pool = pool.filter(op => op.skillKey !== skillKey);
+      
+      // Rimuovi tutti gli operai di questo tipo dai cantieri
+      cantieri.forEach(c => {
+        c.operai = c.operai.filter(op => op.skillKey !== skillKey);
+      });
+      
+      // Rimuovi la skill
+      SKILLS = SKILLS.filter(s => s.key !== skillKey);
+      
+      renderCantieri();
+      salvaSuStorage();
+    };
 
     // -------------------- AGGIUNTA NUOVO TIPO --------------------
     window.aggiungiNuovoTipo = function() {
@@ -665,6 +699,7 @@
             <div class="pool-type-controls">
               <button class="pool-type-btn minus" onclick="event.stopPropagation(); diminuisciOperai('${skill.key}')">−</button>
               <button class="pool-type-btn plus" onclick="event.stopPropagation(); aumentaOperai('${skill.key}')">+</button>
+              <button class="pool-type-btn delete" onclick="event.stopPropagation(); eliminaCategoria('${skill.key}')">🗑️</button>
             </div>
             <span class="pool-type-drag">trascina</span>
           </div>
@@ -705,7 +740,7 @@
         // Raggruppa operai per tipo
         const counts = getCantiereCounts(c);
 
-        // Icone per tipo (UNA per tipo con numero totale)
+        // Icone per tipo
         const iconeContainer = document.createElement('div');
         iconeContainer.className = 'cantieri-operai';
 
@@ -832,7 +867,7 @@
         }
       }
       
-      // Caso 2: Da altro cantiere (icona tipo)
+      // Caso 2: Da altro cantiere
       else if (data.provenienza === 'cantiere-tipo') {
         const origineId = data.cantiereId;
         if (origineId === cantiereId) return;
@@ -841,7 +876,6 @@
         if (!origine) return;
         
         const skill = data.skill;
-        // Trova un operaio di quel tipo nel cantiere origine
         const index = origine.operai.findIndex(op => op.skillKey === skill);
         if (index !== -1) {
           const operaio = origine.operai[index];
@@ -936,13 +970,10 @@
     }
 
     // -------------------- AUTO-SAVE --------------------
-    // Salva automaticamente dopo ogni modifica (già incluso in tutte le funzioni)
-    // In più, salva ogni 30 secondi come backup
     setInterval(() => {
       salvaSuStorage();
     }, 30000);
 
-    // Carica all'avvio
     window.addEventListener('load', () => {
       caricaDaStorage();
       renderCantieri();
